@@ -1,7 +1,8 @@
 from django.http import JsonResponse
 from django.shortcuts import render
-
-from book.models import Book
+from django.db.models import Avg, Min, Max, Sum
+from django.views.decorators.csrf import csrf_exempt
+from book.models import Book, Favourites, Operation, Reader, Review
 
 def get_books(request):
     books = Book.objects.all()
@@ -14,6 +15,54 @@ def get_books(request):
                            "description":book.description,
                            "creator":book.creator.name})
     return JsonResponse(books_list, safe=False)
+
+def get_book_by_id(request, id):
+    book = Book.objects.get(id=id)
+    reviews = Review.objects.filter(book=book)
+    rating = Review.objects.filter(book=book).aggregate(Avg("rating"))['rating__avg']
+    review_list = []
+    for review in reviews:
+        review_list.append({"rating":review.rating, 
+                            "text":review.text, 
+                            "date":review.date, 
+                            "reader":review.reader.name})
+    book_json = {"title":book.title, 
+                "author":book.author,
+                "year":book.year,
+                "genre":book.genre,
+                "description":book.description,
+                "url":book.url,
+                "number":book.number,
+                "creator":book.creator.name,
+                "rating":rating,
+                "reviews":review_list}
+    return JsonResponse(book_json)
+
+def get_profile_info(request, id):
+    reader = Reader.objects.get(id=id)
+    favourites = Favourites.objects.filter(reader=reader)
+    favourites_list = []
+    for el in favourites:
+        favourites_list.append({"title":el.book.title,
+                                "author":el.book.author,
+                                "year":el.book.year})
+    operations = Operation.objects.filter(reader=reader)
+    operation_list = []
+    for operation in operations:
+        operation_list.append({"date":operation.date,
+                               "title":operation.book.title,
+                               "status":operation.status})
+    reader_json = {"name":reader.name,
+                   "email":reader.email,
+                   "favourites":favourites_list,
+                   "history":operation_list
+    }
+    return JsonResponse(reader_json)
+
+
+@csrf_exempt
+def get_books_by_title(request):
+    return request.POST.get("title")
 
 # # получение данных из бд
 # def index(request):
