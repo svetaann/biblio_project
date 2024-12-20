@@ -3,14 +3,14 @@ from django.urls import include, path, re_path
 # from hello import views
 from book import views
 urlpatterns = [
-    
+    path('favourites/', views.edit_favourites),
+    path("review/", views.add_review),
     path("reader/<int:id>/", views.get_profile_info),
+    path("reader/", views.create_reader),
     path("book/<int:id>/", views.get_book_by_id),
-    path("book/", views.get_books_by_title),
     path("test/", views.test),
-    path("books/filter", views.get_filtered_books),
-    path("books", views.get_books),
-    path("", views.get_books),
+    path("books", views.get_filtered_books),
+    path("", views.index),
 
     # path("create/", views.create),
     # path("edit/<int:id>/", views.edit),

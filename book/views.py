@@ -1,31 +1,26 @@
 from itertools import chain
+import json
 from django.http import JsonResponse
 from django.shortcuts import render
-from django.db.models import Avg, Min, Max, Sum
+from django.db.models import Avg, Min, Max, Sum, Q
 from django.views.decorators.csrf import csrf_exempt
 from book.models import Book, Creator, Favourites, Operation, Reader, Review
 from django.db.models.query import Prefetch
 
-def get_books(request):
-    books = Book.objects.all()
-    payload = []
-    for book in books:
-        payload.append({"title":book.title, 
-                           "author":book.author,
-                           "year":book.year,
-                           "genre":book.genre,
-                           "description":book.description,
-                           "creator":book.creator.name})
-    return JsonResponse(payload, safe=False)
+def index(request):
+    return JsonResponse({})
 
 def get_filtered_books(request):
+    title = request.GET.get("title","")
     sortType = request.GET.get("sortType","")
     genre = request.GET.get("genre","")
     fromYear = request.GET.get("fromYear",0)
     toYear = request.GET.get("toYear",0)
     avail = request.GET.get("avail",False)
     highRate = request.GET.get("highRate",False)
-    books = Book.objects
+    books = Book.objects.all()
+    if title != "":
+        books = books.filter(title__icontains=title)
     if genre != "":
         books = books.filter(genre=genre)
     if fromYear != 0 :
@@ -34,6 +29,10 @@ def get_filtered_books(request):
         books = books.filter(year__lt=toYear)
     if avail:
         books = books.filter(number__gt=0)
+    if sortType == "title":
+        books = books.order_by("title")
+    elif sortType == "author":
+        books = books.order_by("author")
     if highRate:
         book_list = []
         for book in books.all():
@@ -43,17 +42,13 @@ def get_filtered_books(request):
                     book_list.append(book)
         books = Book.objects.none()
         books = list(chain(books, book_list))
-    if sortType == "title":
-        books = books.order_by("title")
-    elif sortType == "author":
-        books = books.order_by("author")
     payload = []
     for book in books:
         rating = Review.objects.filter(book=book).aggregate(Avg("rating"))['rating__avg']
         payload.append({"title":book.title, 
                            "author":book.author,
                            "rating":rating})
-    return JsonResponse(payload, safe=False)
+    return JsonResponse(payload, safe=False, json_dumps_params={'ensure_ascii': False})
 
 def get_book_by_id(request, id):
     book = Book.objects.get(id=id)
@@ -74,7 +69,7 @@ def get_book_by_id(request, id):
                 "number":book.number,
                 "rating":rating,
                 "reviews":review_list}
-    return JsonResponse(book_json)
+    return JsonResponse(book_json, json_dumps_params={'ensure_ascii': False})
 
 def get_profile_info(request, id):
     reader = Reader.objects.get(id=id)
@@ -94,12 +89,48 @@ def get_profile_info(request, id):
                    "favourites":favourites_list,
                    "history":operation_list
     }
-    return JsonResponse(payload)
+    return JsonResponse(payload, json_dumps_params={'ensure_ascii': False})
 
+@csrf_exempt 
+def create_reader(request):
+    body = json.loads(request.body.decode('utf-8'))
+    reader = Reader()
+    reader.name = body["surname"] + ' ' + body["name"]
+    reader.email = body["email"]
+    reader.login = body["login"]
+    reader.password = body["password"]
+    reader.birth_date = body["birth_date"]
+    reader.save()
+    return JsonResponse({})
 
-@csrf_exempt
-def get_books_by_title(request):
-    return request.POST.get("title")
+@csrf_exempt 
+def add_review(request):
+    body = json.loads(request.body.decode('utf-8'))
+    reader = Reader.objects.get(id=body["reader_id"])
+    book = Book.objects.get(id=body["book_id"])
+    if Review.objects.filter(reader=reader, book=book).count() == 0:
+        review = Review()
+        review.reader = reader
+        review.book = book
+        review.rating = body["rating"]
+        if "text" in body.keys():
+            review.text = body["text"]
+        review.date = body["date"]
+        review.save()
+    else:
+        review = Review.objects.get(reader=reader, book=book)
+        review.reader = reader
+        review.book = book
+        review.rating = body["rating"]
+        if "text" in body.keys():
+            review.text = body["text"]
+        review.date = body["date"]
+        review.save()
+    return JsonResponse({})
+
+@csrf_exempt 
+def edit_favourites(request):
+    return JsonResponse({})
 
 def test(request):
     # reader = Reader()
@@ -241,4 +272,4 @@ def test(request):
     
 
 
-    return JsonResponse({}, safe=False)
+    return JsonResponse({}, safe=False, json_dumps_params={'ensure_ascii': False})
