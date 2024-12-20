@@ -1,3 +1,4 @@
+import datetime
 from itertools import chain
 import json
 from django.http import JsonResponse
@@ -130,6 +131,52 @@ def add_review(request):
 
 @csrf_exempt 
 def edit_favourites(request):
+    body = json.loads(request.body.decode('utf-8'))
+    reader = Reader.objects.get(id=body["reader_id"])
+    book = Book.objects.get(id=body["book_id"])
+    if Favourites.objects.filter(reader=reader, book=book).count() == 0:
+        favourites = Favourites()
+        favourites.reader = reader
+        favourites.book = book
+        favourites.date = body["date"]
+        favourites.save()
+    else:
+        favourites = Favourites.objects.get(reader=reader, book=book)
+        favourites.delete()
+    return JsonResponse({})
+
+def books_to_return(request, id):
+    reader = Reader.objects.get(id=id)
+    operations = Operation.objects.filter(reader=reader).exclude(status="Возвращено")
+    playload = []
+    for operation in operations:
+        playload.append({"date":operation.date,
+                        "title":operation.book.title,
+                        "status":operation.status})
+    return JsonResponse(playload, safe=False)
+
+@csrf_exempt 
+def return_book(request, id, book_id):
+    reader = Reader.objects.get(id=id)
+    book = Book.objects.get(id=book_id)
+    operation = Operation.objects.get(reader=reader, book=book)
+    operation.status = "Возвращено"
+    operation.save()
+    return JsonResponse({"id":operation.id})
+
+@csrf_exempt 
+def borrow_book(request, id):
+    body = json.loads(request.body.decode('utf-8'))
+    reader = Reader.objects.get(id=body["id"])
+    book = Book.objects.get(id=id)
+    if Operation.objects.filter(reader=reader, book=book).count() == 0:
+        operation = Operation()
+        operation.reader = reader
+        operation.book = book
+        operation.date = datetime.datetime.now()
+        end_date = (datetime.datetime.now() + datetime.timedelta(weeks=4)).strftime('%d.%m.%Y')
+        operation.status = f"На руках до {end_date}"
+        operation.save()
     return JsonResponse({})
 
 def test(request):
