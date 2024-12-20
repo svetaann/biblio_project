@@ -37,7 +37,7 @@ class Favourites(models.Model):
 
 class Review(models.Model):
     reader = models.ForeignKey(Reader, on_delete=models.CASCADE)
-    book = models.ForeignKey(Book, on_delete=models.CASCADE)
+    book = models.ForeignKey(Book, on_delete=models.CASCADE, related_name="reviews")
     rating = models.IntegerField()
     text = models.TextField(null=True)
     date = models.DateField()

@@ -7,9 +7,12 @@ urlpatterns = [
     path("reader/<int:id>/", views.get_profile_info),
     path("book/<int:id>/", views.get_book_by_id),
     path("book/", views.get_books_by_title),
+    path("test/", views.test),
+    path("books/filter", views.get_filtered_books),
+    path("books", views.get_books),
     path("", views.get_books),
 
-#     path("create/", views.create),
-#     path("edit/<int:id>/", views.edit),
-#     path("delete/<int:id>/", views.delete),
+    # path("create/", views.create),
+    # path("edit/<int:id>/", views.edit),
+    # path("delete/<int:id>/", views.delete),
 ]
